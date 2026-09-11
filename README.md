@@ -18,12 +18,15 @@ Cada mensaje lleva un **identificador único**, de modo que si una réplica lleg
 ## Las preguntas que responde el sistema
 
 **¿Cuántos nodos tiene el sistema?**
+
 Tres nodos (`nodo-a`, `nodo-b` y `nodo-c`), aunque la arquitectura permite agregar más sin modificar el código.
 
 **¿Cómo se comunican?**
+
 Todos los nodos ejecutan **el mismo código fuente**; lo único que los diferencia son tres variables de entorno: su nombre (`NODE_ID`), su puerto (`PORT`) y la lista de sus compañeros (`PEERS`). Se comunican entre sí exclusivamente por **HTTP**, dentro de una red Docker propia. No existe memoria compartida, archivos compartidos ni bases de datos centralizadas: cada nodo guarda sus mensajes en su propia memoria.
 
 **¿Qué pasa si uno falla?**
+
 Nada grave. Si un nodo se apaga, los demás lo detectan al intentar replicarle: registran el fallo en su log y **continúan trabajando con normalidad**. El chat sigue funcionando con los nodos restantes, y los usuarios conectados al nodo caído solo tienen que conectarse a otro. De hecho, la demostración final del proyecto consiste en **apagar un nodo en vivo** mientras la conversación continúa.
 
 ## Conceptos de sistemas distribuidos que demuestra
