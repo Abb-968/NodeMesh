@@ -1,3 +1,17 @@
+
+## Roles
+
+**Backend:**
+- Javier Abraham Cruz
+- Abigail Hernandez Contreras
+
+**Pruebas:**
+- Briam Augusto Hernandez Cen
+
+**Documentación:**
+- Emily Ashanty May Aleman
+- Alondra Lisstte Garcia Garcia
+
 # NodeMesh — Chat Distribuido
 
 **NodeMesh** es un sistema de chat distribuido: en lugar de depender de un único servidor central, el servicio está formado por **tres nodos independientes** que trabajan en conjunto. Cualquier usuario puede conectarse a cualquiera de los nodos y la experiencia es exactamente la misma: envía un mensaje en uno y ese mensaje aparece en todos.
@@ -95,16 +109,3 @@ nodemesh/
 ├── package.json
 └── README.md
 ```
-
-## Roles
-
-**Backend:**
-- Javier Abraham Cruz
-- Abigail Hernandez Contreras
-
-**Pruebas:**
-- Briam Augusto Hernandez Cen
-
-**Documentación:**
-- Emily Ashanty May Aleman
-- Alondra Lisstte Garcia Garcia
