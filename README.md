@@ -105,6 +105,73 @@ nodemesh/
 ├── Dockerfile                # La misma imagen para todos los nodos
 ├── docker-compose.yml        # Define los 3 servicios: nodo-a, nodo-b y nodo-c
 ├── .env.example              # Ejemplo de NODE_ID / PORT / PEERS
+├── postman/
+│   ├── NodeMesh.postman_collection.json   # Colección con todas las peticiones
+│   └── NodeMesh-Local.postman_environment.json  # Variables: URLs de los nodos y ngrok
 ├── package.json
 └── README.md
 ```
+
+## Cómo correrlo
+
+### Opción 1: Docker (recomendada)
+
+Requisito: tener Docker Desktop instalado y en ejecución.
+
+```bash
+docker compose up --build
+```
+
+Los tres nodos quedan disponibles en:
+
+| Nodo | URL |
+|---|---|
+| nodo-a | http://localhost:3001 |
+| nodo-b | http://localhost:3002 |
+| nodo-c | http://localhost:3003 |
+
+Para apagar un nodo en la demo (tolerancia a fallos):
+
+```bash
+docker stop nodemesh-nodo-c-1
+```
+
+### Opción 2: Sin Docker (3 terminales)
+
+Requisito: Node.js 18 o superior.
+
+```bash
+npm install
+
+# Terminal 1
+NODE_ID=nodo-a PORT=3001 PEERS=http://localhost:3002,http://localhost:3003 npm start
+
+# Terminal 2
+NODE_ID=nodo-b PORT=3002 PEERS=http://localhost:3001,http://localhost:3003 npm start
+
+# Terminal 3
+NODE_ID=nodo-c PORT=3003 PEERS=http://localhost:3001,http://localhost:3002 npm start
+```
+
+## Probar con Postman
+
+1. Abre Postman y usa **Import** para cargar los dos archivos de la carpeta `postman/`:
+   - `NodeMesh.postman_collection.json` (las peticiones)
+   - `NodeMesh-Local.postman_environment.json` (las variables con las URLs)
+2. Selecciona el entorno **NodeMesh - Local** en el menú de arriba a la derecha.
+3. Flujo de prueba sugerido:
+   - `Estado del nodo A/B/C` → confirma que los tres nodos están activos.
+   - `Enviar mensaje al nodo A`.
+   - `Ver historial del nodo B` y `del nodo C` → el mensaje aparece en ambos (replicación).
+   - Para la demo de tolerancia a fallos: apaga un nodo, vuelve a enviar un mensaje a otro nodo y revisa `Estado` para ver al nodo caído marcado como `caído`.
+
+## Exponer un nodo a internet con ngrok
+
+Permite que un compañero desde otra laptop participe en el chat (simula distribución geográfica real):
+
+```bash
+ngrok http 3001
+```
+
+ngrok mostrará una URL pública (por ejemplo `https://abcd-1234.ngrok-free.app`). El compañero remoto solo tiene que cambiar la variable `ngrok_url` del entorno de Postman por esa URL y usar las peticiones de la carpeta **Cliente remoto (ngrok)**.
+

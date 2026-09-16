@@ -1,0 +1,203 @@
+{
+  "info": {
+    "_postman_id": "nodemesh-collection-001",
+    "name": "NodeMesh — Chat Distribuido",
+    "description": "Colección para probar los tres nodos del chat distribuido NodeMesh.\n\nAntes de empezar: importa también el entorno **NodeMesh - Local** y selecciónalo arriba a la derecha.\n\nFlujo de prueba sugerido:\n1. `GET /health` en los 3 nodos para confirmar que están activos.\n2. `POST /messages` al nodo A.\n3. `GET /messages` en los nodos B y C para verificar la replicación.\n4. (Demo) Apaga un nodo y repite: el sistema sigue funcionando.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Nodo A (puerto 3001)",
+      "item": [
+        {
+          "name": "Enviar mensaje al nodo A",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"{{author}}\",\n  \"text\": \"Hola desde el nodo A\"\n}"
+            },
+            "url": {
+              "raw": "{{nodo_a}}/messages",
+              "host": ["{{nodo_a}}"],
+              "path": ["messages"]
+            },
+            "description": "El cliente envía un mensaje al nodo A. El nodo lo guarda y lo replica a los nodos B y C."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver historial del nodo A",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_a}}/messages",
+              "host": ["{{nodo_a}}"],
+              "path": ["messages"]
+            },
+            "description": "Devuelve todos los mensajes que conoce el nodo A."
+          },
+          "response": []
+        },
+        {
+          "name": "Estado del nodo A",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_a}}/health",
+              "host": ["{{nodo_a}}"],
+              "path": ["health"]
+            },
+            "description": "Muestra el estado del nodo A y de sus nodos pares. Úsalo en la demo para ver cuándo un nodo está caído."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Nodo B (puerto 3002)",
+      "item": [
+        {
+          "name": "Enviar mensaje al nodo B",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"{{author}}\",\n  \"text\": \"Hola desde el nodo B\"\n}"
+            },
+            "url": {
+              "raw": "{{nodo_b}}/messages",
+              "host": ["{{nodo_b}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver historial del nodo B",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_b}}/messages",
+              "host": ["{{nodo_b}}"],
+              "path": ["messages"]
+            },
+            "description": "Aquí deben aparecer también los mensajes enviados a los nodos A y C (replicación)."
+          },
+          "response": []
+        },
+        {
+          "name": "Estado del nodo B",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_b}}/health",
+              "host": ["{{nodo_b}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Nodo C (puerto 3003)",
+      "item": [
+        {
+          "name": "Enviar mensaje al nodo C",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"{{author}}\",\n  \"text\": \"Hola desde el nodo C\"\n}"
+            },
+            "url": {
+              "raw": "{{nodo_c}}/messages",
+              "host": ["{{nodo_c}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver historial del nodo C",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_c}}/messages",
+              "host": ["{{nodo_c}}"],
+              "path": ["messages"]
+            },
+            "description": "Aquí deben aparecer también los mensajes enviados a los nodos A y B (replicación)."
+          },
+          "response": []
+        },
+        {
+          "name": "Estado del nodo C",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{nodo_c}}/health",
+              "host": ["{{nodo_c}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cliente remoto (ngrok)",
+      "item": [
+        {
+          "name": "Enviar mensaje vía ngrok",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"{{author}}\",\n  \"text\": \"Hola desde otra laptop por ngrok\"\n}"
+            },
+            "url": {
+              "raw": "{{ngrok_url}}/messages",
+              "host": ["{{ngrok_url}}"],
+              "path": ["messages"]
+            },
+            "description": "Simula un cliente remoto fuera de la red local. Cambia la variable `ngrok_url` del entorno por la URL que te dé ngrok."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver historial vía ngrok",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ngrok_url}}/messages",
+              "host": ["{{ngrok_url}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
