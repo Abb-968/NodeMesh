@@ -1,144 +1,118 @@
-# NodeMesh en red local: una PC, un nodo
+# NodeMesh en red local: una PC, un nodo (descubrimiento automático)
 
-Guía para levantar el sistema con **un nodo por PC** (la forma distribuida "real"): la PC 1 corre solo `nodo-a`, la PC 2 solo `nodo-b`, la PC 3 solo `nodo-c`. Todos usan el **mismo puerto (3001)**; lo que distingue a cada nodo es la IP de su PC.
-
-Cada PC se configura con un archivo `.env` en la raíz del proyecto — no hace falta tocar el código ni exportar variables a mano.
-
-> **Cómo se conectan:** cada nodo replica solo a los que tenga en su lista `PEERS`. Por eso el `.env` de cada PC debe listar las IPs de las **otras dos** PCs.
+Guía para levantar el sistema con **un nodo por PC** (la forma distribuida "real"): la PC 1 corre solo `nodo-a`, la PC 2 solo `nodo-b`, la PC 3 solo `nodo-c`. Todos usan el **mismo puerto (3001)** y, gracias a `PEERS=auto`, **se descubren entre sí solos**: no hay que averiguar IPs ni editar archivos de configuración.
 
 ---
 
 ## Paso 0 — Requisitos en cada PC
 
 - Node.js 18 o superior (`node --version`)
-- El código del proyecto (clonar el repo o copiar la carpeta) y `npm install`
-
-## Paso 1 — Obtener la IP de cada PC
-
-Ejecutar en **cada una**:
+- El código del proyecto:
 
 ```bash
-ip route | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") {print $(i+1); exit}}'
+git clone https://github.com/Abb-968/NodeMesh.git
+cd NodeMesh
+npm install
 ```
 
-Anotar las tres IPs. En esta guía usamos de ejemplo:
-
-| PC | IP de ejemplo | Nodo |
-|---|---|---|
-| PC 1 | `10.20.8.221` | nodo-a |
-| PC 2 | `192.168.1.51` | nodo-b |
-| PC 3 | `192.168.1.52` | nodo-c |
-
-## Paso 2 — Crear el `.env` de cada PC
-
-En la raíz del proyecto hay plantillas listas en `envs/`. Cada PC copia la suya y edita los placeholders `IP_NODO_X` por las IPs reales del Paso 1:
+## Paso 1 — Crear la configuración (automático)
 
 ```bash
-# PC 1
-cp envs/nodo-a.env .env
-
-# PC 2
-cp envs/nodo-b.env .env
-
-# PC 3
-cp envs/nodo-c.env .env
+npm run setup
 ```
 
-Ejemplo del `.env` resultante en la PC 2 (nodo-b):
+El asistente pregunta solo una cosa: **¿qué nodo es esta PC?** (a/b/c). Con la respuesta genera el `.env`:
 
-```bash
+```
 NODE_ID=nodo-b
 PORT=3001
-PEERS=http://10.20.8.221:3001,http://192.168.1.52:3001
+PEERS=auto
 ```
 
-`10.20.8.221` ya viene precargado en `envs/nodo-b.env` y `envs/nodo-c.env` porque es la IP actual de la PC del nodo A; solo falta completar la IP de la tercera PC. El archivo `.env` está en el `.gitignore`, así que cada PC puede tener el suyo sin conflictos.
+(Si prefieres hacerlo a mano: `cp envs/nodo-b.env .env` y edítalo.)
 
-## Paso 3 — Arrancar el nodo en cada PC
+## Paso 2 — Arrancar el nodo
 
 ```bash
 npm start
 ```
 
-El comando lee el `.env` automáticamente (gracias a `dotenv`) y levanta el nodo con la identidad y pares configurados. Para comprobar qué configuración tomó, fíjate en el arranque:
+Al arrancar verás:
 
 ```
 [nodo-b] Escuchando en el puerto 3001
-[nodo-b] Nodos pares: http://10.20.8.221:3001, http://192.168.1.52:3001
+[nodo-b] Nodos pares: (descubrimiento automático)
+[nodo-b] Descubrimiento automático activo (PEERS=auto)
 ```
 
-## Paso 4 — Firewall (solo si algo marca "caído")
+Cuando las otras PCs enciendan su nodo, cada uno lo encontrará solo y avisará:
 
-Si el firewall está activo, abrir el puerto en cada PC:
+```
+[nodo-b] Nodo encontrado: nodo-a en http://192.168.1.50:3001
+[nodo-b] Nodo encontrado: nodo-c en http://192.168.1.52:3001
+```
+
+## Paso 3 — Firewall
+
+El descubrimiento sale de cada PC, pero para que los demás puedan **entrar** hay que permitir el puerto **una sola vez por PC**:
 
 ```bash
+# Linux
 sudo ufw allow 3001
 ```
 
-Express ya escucha en todas las interfaces de red, no requiere cambios de código.
+**Windows:** la primera vez que `npm start` corre, Windows Defender Firewall muestra un aviso pidiendo permiso para Node.js — marca las casillas y acepta. Si no apareció o lo negaste:
 
-## Paso 5 — Verificación
+```bat
+netsh advfirewall firewall add rule name="NodeMesh" dir=in action=allow protocol=TCP localport=3001
+```
 
-**1. Estado desde cualquier PC:**
+(ejecutar CMD/PowerShell **como administrador**)
+
+## Paso 4 — Verificación
+
+**1. Estado de tu nodo** (desde cualquier PC):
 
 ```bash
 curl http://localhost:3001/health
 ```
 
-Los dos pares deben aparecer como `"status":"activo"`.
+Cuando la malla esté completa, `peers` lista a los otros dos con su nombre y `"status":"activo"`.
 
-**2. Replicación entre PCs** — desde la PC 1:
+**2. Replicación entre PCs** — envía desde tu PC:
 
 ```bash
 curl -X POST http://localhost:3001/messages \
   -H 'Content-Type: application/json' \
-  -d '{"author":"Javier","text":"Hola desde la PC 1"}'
-
-# desde la PC 2, hacia la PC 1:
-curl http://10.20.8.221:3001/messages
+  -d '{"author":"Javier","text":"Hola desde mi PC"}'
 ```
 
-El mensaje enviado en una PC debe verse desde las otras dos.
+y pide a un compañero que revise la interfaz o el historial en la suya — el mensaje debe aparecer en todas.
 
-**3. Interfaz web:** abrir en el navegador de cualquier PC `http://localhost:3001/`, o desde otra PC `http://IP_DE_ESA_PC:3001/`. Cada nodo sirve la misma interfaz Vue.
+**3. Interfaz web:** en el navegador de cualquier PC abre `http://localhost:3001/`; desde otra PC o un teléfono de la misma red, `http://IP_DE_LA_PC:3001/`. Verás los nodos detectados como chips en el encabezado y cada mensaje indica por cuál nodo entró (`vía nodo-x`).
 
-**4. Con Postman:** cambiar las variables `nodo_a` / `nodo_b` / `nodo_c` del entorno por las URLs reales (`http://10.20.8.221:3001`, etc.) y ejecutar la colección normalmente.
+**4. Con Postman:** apunta las variables del entorno a `http://IP_DE_CADA_PC:3001` (la IP se obtiene con `ipconfig` en Windows o `ip route` en Linux) y ejecuta la colección.
 
 ---
 
+## Cómo funciona el descubrimiento
+
+Cada ~8 segundos el nodo:
+
+1. Toma sus IPs locales (ignorando localhost y redes de Docker) y asume su subred `/24`.
+2. Sondea los 254 equipos de esa subred buscando quién escucha en el puerto 3001.
+3. A cada equipo encontrado le pregunta `GET /health?simple=1` para saber **quién es** (su `NODE_ID`).
+4. Registra como par a cada nodo nuevo (por identidad, sin duplicados) y desde ese momento replica con él.
+
+Limitaciones: funciona dentro de la misma subred (/24). Si la red aísla equipos entre sí (común en redes institucionales), usa un **hotspot de teléfono** con todas las PCs conectadas — es la forma más confiable para la demo.
+
 ## Demo de tolerancia a fallos
 
-Con un nodo por PC es trivial: `Ctrl+C` en la terminal de una PC. Los `/health` de las otras dos la marcarán como `caído` y el chat seguirá funcionando entre ellas. Al reincorporarla (reiniciar `npm start`), volverá a recibir solo los mensajes nuevos (la memoria no persiste).
-
-## ¿Y si alguna PC usa Windows?
-
-El flujo es el mismo (gracias al `.env` no hace falta exportar variables). Solo cambian algunos comandos:
-
-```bat
-:: CMD — clonar, instalar y copiar la plantilla
-git clone https://github.com/Abb-968/NodeMesh.git
-cd NodeMesh
-npm install
-copy envs\nodo-b.env .env
-notepad .env        :: editar las IPs y guardar
-npm start
-```
-
-En **PowerShell**, el `copy` se escribe `Copy-Item envs/nodo-b.env .env` (o `cp`, que también es alias).
-
-| Tarea | Linux | Windows |
-|---|---|---|
-| IP local | `ip route \| awk ...` | `ipconfig` (buscar "IPv4" del adaptador Wi-Fi/Ethernet) o `ipconfig \| findstr IPv4` |
-| Copiar plantilla | `cp envs/nodo-x.env .env` | `copy envs\nodo-x.env .env` (CMD) |
-| Firewall | `sudo ufw allow 3001` | Aceptar el aviso de "Windows Defender Firewall" la primera vez que Node corre, o como admin: `netsh advfirewall firewall add rule name="NodeMesh" dir=in action=allow protocol=TCP localport=3001` |
-| Variables en línea (solo simulación de 3 nodos en una PC) | `NODE_ID=nodo-a PORT=3001 PEERS=... npm start` | CMD: `set NODE_ID=nodo-a&& set PORT=3001&& set PEERS=http://localhost:3002,http://localhost:3003&& npm start`<br>PowerShell: `$env:NODE_ID='nodo-a'; $env:PORT='3001'; $env:PEERS='http://localhost:3002,http://localhost:3003'; npm start` |
-| Probar con curl | `curl ...` | igual, pero en PowerShell escribe `curl.exe` (el alias `curl` es otro comando) |
-
-Con **Docker Desktop** en Windows, `docker compose up --build` funciona igual en PowerShell.
+Con un nodo por PC es trivial: `Ctrl+C` en la terminal de una PC. Los `/health` de las otras la marcarán `caído` y el chat seguirá funcionando. Al reincorporarla (`npm start`), la red la redescubre sola en pocos segundos (arranca con el historial vacío, como cualquier nodo nuevo).
 
 ## Prueba en una sola PC (ensayo sin compañeros)
 
-Sin tocar el modelo de 1 nodo por PC, se pueden simular los 3 nodos en una misma máquina usando puertos distintos **definidos en la terminal** (tienen prioridad sobre el `.env`):
+Sin tocar el modelo de 1 nodo por PC, se pueden simular los 3 nodos en una misma máquina con puertos distintos **definidos en la terminal** (tienen prioridad sobre el `.env`):
 
 ```bash
 # Terminal 1
@@ -151,24 +125,37 @@ NODE_ID=nodo-b PORT=3002 PEERS=http://localhost:3001,http://localhost:3003 npm s
 NODE_ID=nodo-c PORT=3003 PEERS=http://localhost:3001,http://localhost:3002 npm start
 ```
 
+En Windows (CMD) los `set` van por separado: `set NODE_ID=nodo-a&& set PORT=3001&& set PEERS=http://localhost:3002,http://localhost:3003&& npm start`.
+
+## Modo manual (alternativa a auto)
+
+Si se prefiere fijar los pares a mano (como hace Docker), basta con listarlos en el `.env`:
+
+```bash
+NODE_ID=nodo-b
+PORT=3001
+PEERS=http://192.168.1.50:3001,http://192.168.1.52:3001
+```
+
+Recuerda que cada nodo solo replica a quienes tenga en su lista, y que la lista se lee al arrancar (cámbiala y reinicia). Las IPs se averiguan así:
+
+| Sistema | Comando |
+|---|---|
+| Linux | `ip route \| awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") {print $(i+1); exit}}'` |
+| Windows | `ipconfig` → línea "Dirección IPv4" del adaptador activo |
+
 ## Problemas comunes
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| Un par aparece `caído` en `/health` | Firewall, IP incorrecta o esa PC no tiene su nodo corriendo | Verificar Paso 4, que la IP sea la correcta y que en esa PC `npm start` esté activo |
-| El nodo arranca como `nodo-local` en el puerto 3000 | No existe `.env` o no se copió desde `envs/` | Copiar la plantilla del Paso 2 y reiniciar |
+| Un nodo aparece `caído` en `/health` | Esa PC no tiene su nodo corriendo o su firewall bloquea el 3001 | Paso 2 y Paso 3 en esa PC |
+| Ningún nodo encuentra a nadie | Red que aísla equipos (aislamiento de clientes), típico de redes universitarias | Conectar todas las PCs a un **hotspot** de teléfono |
+| Los nodos se ven pero con mucho delay | Subred grande o Wi-Fi saturado | Es normal el primer descubrimiento (~8 s); luego es inmediato |
+| El nodo arranca como `nodo-local` en el puerto 3000 | No existe `.env` | Correr `npm run setup` (o copiar una plantilla de `envs/`) y reiniciar |
 | Cambié el `.env` pero sigue la config vieja | Las variables se leen solo al arrancar | Detener (`Ctrl+C`) y volver a correr `npm start` |
 | El nodo "nuevo" no tiene mensajes antiguos | El almacén es en memoria | Comportamiento esperado: solo ve los mensajes desde que se unió |
-| `EADDRINUSE: puerto en uso` | Otro proceso usa el 3001 | Cambiar el `PORT` en el `.env` y en los `PEERS` de las otras PCs |
+| `EADDRINUSE: puerto en uso` | Otro proceso usa el 3001 | Cambiar el `PORT` en el `.env` (y ajustar el firewall al nuevo puerto) |
 
 ## Agregar un cuarto nodo (escalabilidad horizontal)
 
-Levantar el proyecto en una cuarta PC con:
-
-```bash
-NODE_ID=nodo-d
-PORT=3001
-PEERS=http://IP_NODO_A:3001,http://IP_NODO_B:3001,http://IP_NODO_C:3001
-```
-
-y agregar `http://IP_NODO_D:3001` al `PEERS` del `.env` de las tres PCs existentes (reiniciándolas). Sin cambiar una sola línea de código.
+Levantar el proyecto en una cuarta PC y contestar `d` en `npm run setup`. Sin configurar nada más: la malla lo descubre y lo integra en vivo. Así de sencillo es escalar horizontalmente con `PEERS=auto`.
