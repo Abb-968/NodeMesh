@@ -101,6 +101,21 @@
     }
     button:disabled { opacity: 0.5; cursor: default; }
     .error { color: #fca5a5; font-size: 0.8rem; margin-top: 6px; }
+    .hint { color: #64748b; font-size: 0.75rem; margin-top: 6px; }
+    .hint strong { color: #7dd3fc; }
+    .banner {
+      background: #7f1d1d;
+      color: #fecaca;
+      text-align: center;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-bottom: 1px solid #991b1b;
+    }
+    @keyframes flash { from { background-color: #155e75; } to { background-color: #1e293b; } }
+    @keyframes flashMio { from { background-color: #166534; } to { background-color: #14532d; } }
+    .msg.nuevo .text { animation: flash 1.5s ease-out; }
+    .msg.mio.nuevo .text { animation: flashMio 1.5s ease-out; }
     @media (max-width: 560px) {
       form { flex-wrap: wrap; }
       input[name="author"] { width: 100%; }
@@ -126,20 +141,24 @@
             :title="'Abrir la interfaz de ' + (p.node || p.peer)"
           >{{ p.node || nombreCorto(p.peer) }} · {{ p.status }}</a>
         </span>
-        <span class="chip here" :title="'Estás conectado a este nodo'">este nodo: {{ nodo }}</span>
+        <span class="chip here" :title="'Estás conectado a ' + nodo + ' (' + ubicacion + ')'">tú: {{ nodo }} · {{ ubicacion }}</span>
       </span>
     </header>
+
+    <div class="banner" v-if="estado !== 'activo'">
+      ⚠ Sin conexión con tu nodo ({{ nodo || '…' }}). No se enviarán ni recibirán mensajes hasta que vuelva.
+    </div>
 
     <main ref="lista">
       <div
         v-for="m in mensajes"
         :key="m.id"
         class="msg"
-        :class="{ mio: m.author === author && author !== '' }"
+        :class="{ mio: m.author === author && author !== '', nuevo: nuevos.has(m.id) }"
       >
         <div class="meta">
           <span class="author">{{ m.author }}</span>
-          <span class="origin">{{ m.origin }}</span>
+          <span class="origin" :style="estiloNodo(m.origin)" :title="'Mensaje recibido por ' + m.origin + ' (punto de entrada al sistema)'">vía {{ m.origin }}</span>
           <time>{{ hora(m.timestamp) }}</time>
         </div>
         <div class="text">{{ m.text }}</div>
@@ -155,6 +174,9 @@
         <input name="text" v-model="texto" placeholder="Escribe un mensaje y presiona Enter..." required maxlength="500" />
         <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar' }}</button>
       </form>
+      <p class="hint" v-if="estado === 'activo' && nodo">
+        Este mensaje entrará por <strong>{{ nodo }}</strong> y se replicará a los demás nodos de la red.
+      </p>
       <p class="error" v-if="error">{{ error }}</p>
     </footer>
   </div>
@@ -173,7 +195,14 @@
           texto: '',
           enviando: false,
           error: '',
+          vistos: new Set(),
+          nuevos: new Set(),
         };
+      },
+      computed: {
+        ubicacion() {
+          return window.location.host;
+        },
       },
       methods: {
         async cargar() {
@@ -181,11 +210,26 @@
             const res = await fetch('/messages');
             if (!res.ok) throw new Error();
             const data = await res.json();
+            const primeraCarga = this.vistos.size === 0;
+            let huboNuevos = false;
+            for (const m of data.messages) {
+              if (!this.vistos.has(m.id)) {
+                this.vistos.add(m.id);
+                if (!primeraCarga) {
+                  this.nuevos.add(m.id);
+                  huboNuevos = true;
+                }
+              }
+            }
             this.mensajes = data.messages;
             this.nodo = data.node;
             this.estado = 'activo';
             this.error = '';
-            this.$nextTick(() => this.bajar());
+            if (huboNuevos) {
+              this.$nextTick(() => this.bajar());
+              clearTimeout(this._flash);
+              this._flash = setTimeout(() => this.nuevos.clear(), 2500);
+            }
           } catch {
             this.estado = 'caído';
           }
@@ -230,6 +274,19 @@
         },
         nombreCorto(url) {
           try { return new URL(url).hostname; } catch { return url; }
+        },
+        hue(id) {
+          let h = 0;
+          for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) % 360;
+          return h;
+        },
+        estiloNodo(id) {
+          const h = this.hue(id);
+          return {
+            color: `hsl(${h}, 75%, 72%)`,
+            background: `hsl(${h}, 45%, 18%)`,
+            border: `1px solid hsl(${h}, 45%, 32%)`,
+          };
         },
       },
       mounted() {
