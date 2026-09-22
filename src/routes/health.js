@@ -15,9 +15,10 @@ router.get('/', async (req, res) => {
         const res = await fetch(`${peer}/health?simple=1`, {
           signal: AbortSignal.timeout(2000),
         });
-        return { peer, status: res.ok ? 'activo' : `error-${res.status}` };
+        const data = await res.json().catch(() => ({}));
+        return { peer, node: data.node || null, status: res.ok ? 'activo' : `error-${res.status}` };
       } catch {
-        return { peer, status: 'caído' };
+        return { peer, node: null, status: 'caído' };
       }
     })
   );
