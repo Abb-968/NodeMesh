@@ -136,22 +136,19 @@ Para apagar un nodo en la demo (tolerancia a fallos):
 docker stop nodemesh-nodo-c-1
 ```
 
-### Opción 2: Sin Docker (3 terminales)
+### Opción 2: Sin Docker — una PC por nodo (red local)
 
-Requisito: Node.js 18 o superior.
+Requisito: Node.js 18 o superior en cada PC. Cada PC corre **un solo nodo**, configurado con un archivo `.env` (ver `.env.example` y las plantillas en `envs/`):
 
 ```bash
 npm install
-
-# Terminal 1
-NODE_ID=nodo-a PORT=3001 PEERS=http://localhost:3002,http://localhost:3003 npm start
-
-# Terminal 2
-NODE_ID=nodo-b PORT=3002 PEERS=http://localhost:3001,http://localhost:3003 npm start
-
-# Terminal 3
-NODE_ID=nodo-c PORT=3003 PEERS=http://localhost:3001,http://localhost:3002 npm start
+cp envs/nodo-a.env .env   # cada PC usa la plantilla de su nodo
+npm start
 ```
+
+Los tres nodos quedan disponibles en `http://IP_DE_CADA_PC:3001`. La guía paso a paso (IPs, firewall, verificación) está en [docs/conectar-nodos-red-local.md](docs/conectar-nodos-red-local.md).
+
+> Para ensayar sin compañeros, se pueden simular los 3 nodos en una sola PC con 3 terminales y puertos distintos: `NODE_ID=nodo-a PORT=3001 PEERS=http://localhost:3002,http://localhost:3003 npm start` (y el equivalente para B y C).
 
 ## Probar con Postman
 
@@ -165,6 +162,15 @@ NODE_ID=nodo-c PORT=3003 PEERS=http://localhost:3001,http://localhost:3002 npm s
    - `Ver historial del nodo B` y `del nodo C` → el mensaje aparece en ambos (replicación).
    - Para la demo de tolerancia a fallos: apaga un nodo, vuelve a enviar un mensaje a otro nodo y revisa `Estado` para ver al nodo caído marcado como `caído`.
 
+## Interfaz web (extra)
+
+Cada nodo sirve además una interfaz de chat sencilla hecha con Vue 3 (un solo `public/index.html`, sin paso de compilación). Basta abrir en el navegador la URL del nodo al que se quiera conectar:
+
+- En la misma PC: http://localhost:3001/ (o 3002 / 3003)
+- Desde otra PC de la red local: http://192.168.1.50:3001/
+
+La página usa rutas relativas, así que siempre habla con el nodo que la sirve y ese nodo se encarga de replicar a los demás. Requiere conexión a internet la primera vez, porque Vue se carga desde un CDN.
+
 ## Exponer un nodo a internet con ngrok
 
 Permite que un compañero desde otra laptop participe en el chat (simula distribución geográfica real):
@@ -174,4 +180,6 @@ ngrok http 3001
 ```
 
 ngrok mostrará una URL pública (por ejemplo `https://abcd-1234.ngrok-free.app`). El compañero remoto solo tiene que cambiar la variable `ngrok_url` del entorno de Postman por esa URL y usar las peticiones de la carpeta **Cliente remoto (ngrok)**.
+
+> ¿Las otras PCs están en la **misma red local**? Entonces no hace falta ngrok: cada PC puede correr su propio nodo siguiendo la guía [NodeMesh en red local: una PC, un nodo](docs/conectar-nodos-red-local.md).
 

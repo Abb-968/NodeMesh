@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NodeMesh — Chat distribuido</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.1rem; letter-spacing: 0.5px; }
+    header h1 span { color: #38bdf8; }
+    .pill {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #334155;
+    }
+    .pill.ok { background: #14532d; color: #86efac; }
+    .pill.fail { background: #7f1d1d; color: #fca5a5; }
+    .peers { font-size: 0.75rem; color: #94a3b8; margin-left: auto; }
+    main { flex: 1; overflow-y: auto; padding: 16px; }
+    .msg { margin-bottom: 12px; max-width: 75%; }
+    .meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+    .author { font-weight: 600; font-size: 0.85rem; color: #38bdf8; }
+    .origin {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      background: #1e293b;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    time { font-size: 0.7rem; color: #64748b; }
+    .text {
+      background: #1e293b;
+      border-radius: 4px 12px 12px 12px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.mio .author { color: #4ade80; }
+    .msg.mio .text { background: #14532d; }
+    .empty { color: #64748b; text-align: center; margin-top: 40px; font-size: 0.9rem; }
+    footer { padding: 12px 16px; background: #1e293b; border-top: 1px solid #334155; }
+    form { display: flex; gap: 8px; }
+    input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+    }
+    input:focus { outline: none; border-color: #38bdf8; }
+    input[name="author"] { width: 140px; flex-shrink: 0; }
+    input[name="text"] { flex: 1; }
+    button {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .error { color: #fca5a5; font-size: 0.8rem; margin-top: 6px; }
+    @media (max-width: 560px) {
+      form { flex-wrap: wrap; }
+      input[name="author"] { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Node<span>Mesh</span></h1>
+      <span class="pill" :class="estado === 'activo' ? 'ok' : 'fail'">
+        {{ nodo || '...' }} · {{ estado }}
+      </span>
+      <span class="pill">{{ mensajes.length }} mensaje(s)</span>
+      <span class="peers" v-if="pares.length">
+        pares: {{ pares.map(p => `${nombreCorto(p.peer)} ${p.status}`).join(' · ') }}
+      </span>
+    </header>
+
+    <main ref="lista">
+      <div
+        v-for="m in mensajes"
+        :key="m.id"
+        class="msg"
+        :class="{ mio: m.author === author && author !== '' }"
+      >
+        <div class="meta">
+          <span class="author">{{ m.author }}</span>
+          <span class="origin">{{ m.origin }}</span>
+          <time>{{ hora(m.timestamp) }}</time>
+        </div>
+        <div class="text">{{ m.text }}</div>
+      </div>
+      <p class="empty" v-if="estado === 'activo' && mensajes.length === 0">
+        Aún no hay mensajes. ¡Escribe el primero!
+      </p>
+    </main>
+
+    <footer>
+      <form @submit.prevent="enviar">
+        <input name="author" v-model.trim="author" placeholder="Tu nombre" required maxlength="40" />
+        <input name="text" v-model="texto" placeholder="Escribe un mensaje y presiona Enter..." required maxlength="500" />
+        <button type="submit" :disabled="enviando">{{ enviando ? 'Enviando…' : 'Enviar' }}</button>
+      </form>
+      <p class="error" v-if="error">{{ error }}</p>
+    </footer>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          mensajes: [],
+          nodo: '',
+          estado: 'conectando',
+          pares: [],
+          author: localStorage.getItem('nodemesh-author') || '',
+          texto: '',
+          enviando: false,
+          error: '',
+        };
+      },
+      methods: {
+        async cargar() {
+          try {
+            const res = await fetch('/messages');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            this.mensajes = data.messages;
+            this.nodo = data.node;
+            this.estado = 'activo';
+            this.error = '';
+            this.$nextTick(() => this.bajar());
+          } catch {
+            this.estado = 'caído';
+          }
+        },
+        async salud() {
+          try {
+            const res = await fetch('/health');
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            this.pares = data.peers || [];
+          } catch { /* se refleja en cargar() */ }
+        },
+        async enviar() {
+          if (!this.texto.trim() || this.enviando) return;
+          this.enviando = true;
+          this.error = '';
+          try {
+            const res = await fetch('/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ author: this.author, text: this.texto }),
+            });
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data.error || `Error ${res.status}`);
+            }
+            this.texto = '';
+            localStorage.setItem('nodemesh-author', this.author);
+            await this.cargar();
+          } catch (e) {
+            this.error = `No se pudo enviar: ${e.message}`;
+          } finally {
+            this.enviando = false;
+          }
+        },
+        bajar() {
+          const el = this.$refs.lista;
+          if (el) el.scrollTop = el.scrollHeight;
+        },
+        hora(ts) {
+          return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        },
+        nombreCorto(url) {
+          try { return new URL(url).port || new URL(url).hostname; } catch { return url; }
+        },
+      },
+      mounted() {
+        this.cargar();
+        this.salud();
+        setInterval(() => { this.cargar(); this.salud(); }, 2000);
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>
