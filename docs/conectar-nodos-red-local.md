@@ -110,6 +110,32 @@ El mensaje enviado en una PC debe verse desde las otras dos.
 
 Con un nodo por PC es trivial: `Ctrl+C` en la terminal de una PC. Los `/health` de las otras dos la marcarán como `caído` y el chat seguirá funcionando entre ellas. Al reincorporarla (reiniciar `npm start`), volverá a recibir solo los mensajes nuevos (la memoria no persiste).
 
+## ¿Y si alguna PC usa Windows?
+
+El flujo es el mismo (gracias al `.env` no hace falta exportar variables). Solo cambian algunos comandos:
+
+```bat
+:: CMD — clonar, instalar y copiar la plantilla
+git clone https://github.com/Abb-968/NodeMesh.git
+cd NodeMesh
+npm install
+copy envs\nodo-b.env .env
+notepad .env        :: editar las IPs y guardar
+npm start
+```
+
+En **PowerShell**, el `copy` se escribe `Copy-Item envs/nodo-b.env .env` (o `cp`, que también es alias).
+
+| Tarea | Linux | Windows |
+|---|---|---|
+| IP local | `ip route \| awk ...` | `ipconfig` (buscar "IPv4" del adaptador Wi-Fi/Ethernet) o `ipconfig \| findstr IPv4` |
+| Copiar plantilla | `cp envs/nodo-x.env .env` | `copy envs\nodo-x.env .env` (CMD) |
+| Firewall | `sudo ufw allow 3001` | Aceptar el aviso de "Windows Defender Firewall" la primera vez que Node corre, o como admin: `netsh advfirewall firewall add rule name="NodeMesh" dir=in action=allow protocol=TCP localport=3001` |
+| Variables en línea (solo simulación de 3 nodos en una PC) | `NODE_ID=nodo-a PORT=3001 PEERS=... npm start` | CMD: `set NODE_ID=nodo-a&& set PORT=3001&& set PEERS=http://localhost:3002,http://localhost:3003&& npm start`<br>PowerShell: `$env:NODE_ID='nodo-a'; $env:PORT='3001'; $env:PEERS='http://localhost:3002,http://localhost:3003'; npm start` |
+| Probar con curl | `curl ...` | igual, pero en PowerShell escribe `curl.exe` (el alias `curl` es otro comando) |
+
+Con **Docker Desktop** en Windows, `docker compose up --build` funciona igual en PowerShell.
+
 ## Prueba en una sola PC (ensayo sin compañeros)
 
 Sin tocar el modelo de 1 nodo por PC, se pueden simular los 3 nodos en una misma máquina usando puertos distintos **definidos en la terminal** (tienen prioridad sobre el `.env`):
