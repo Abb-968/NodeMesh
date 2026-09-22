@@ -4,38 +4,15 @@ Guía para levantar el sistema con **un nodo por PC** (la forma distribuida "rea
 
 ---
 
-## Paso 0 — Requisitos en cada PC
+## En cada PC: una sola línea
 
-- Node.js 18 o superior (`node --version`)
-- El código del proyecto:
-
-```bash
-git clone https://github.com/Abb-968/NodeMesh.git
-cd NodeMesh
-npm install
-```
-
-## Paso 1 — Crear la configuración (automático)
+Requisito: Node.js 18 o superior. Con esta única línea cada PC queda montada completa (cada PC cambia la `b` por la letra de su nodo: a, b o c):
 
 ```bash
-npm run setup
+git clone https://github.com/Abb-968/NodeMesh.git && cd NodeMesh && npm install && npm run setup b && npm start
 ```
 
-El asistente pregunta solo una cosa: **¿qué nodo es esta PC?** (a/b/c). Con la respuesta genera el `.env`:
-
-```
-NODE_ID=nodo-b
-PORT=3001
-PEERS=auto
-```
-
-(Si prefieres hacerlo a mano: `cp envs/nodo-b.env .env` y edítalo.)
-
-## Paso 2 — Arrancar el nodo
-
-```bash
-npm start
-```
+Qué hace, paso a paso: clona el repo → instala dependencias → crea el `.env` (nodo-b, puerto 3001, `PEERS=auto`) → arranca el nodo, que también sirve la interfaz web en `http://IP_DE_LA_PC:3001`. Funciona igual en Linux, macOS y Windows (CMD/PowerShell).
 
 Al arrancar verás:
 
@@ -45,14 +22,17 @@ Al arrancar verás:
 [nodo-b] Descubrimiento automático activo (PEERS=auto)
 ```
 
-Cuando las otras PCs enciendan su nodo, cada uno lo encontrará solo y avisará:
+y cuando las otras PCs enciendan su nodo, cada uno los encontrará solo y avisará:
 
 ```
 [nodo-b] Nodo encontrado: nodo-a en http://192.168.1.50:3001
 [nodo-b] Nodo encontrado: nodo-c en http://192.168.1.52:3001
 ```
 
-## Paso 3 — Firewall
+> ¿El proyecto ya está clonado en esa PC? Entonces le basta con: `npm install && npm run setup b && npm start`.
+> `npm run setup` sin letra pregunta interactivamente en vez de asumir; y si ya existe un `.env` en la PC, lo respeta (para cambiarlo, edítalo o bórralo).
+
+## Firewall (una vez por PC)
 
 El descubrimiento sale de cada PC, pero para que los demás puedan **entrar** hay que permitir el puerto **una sola vez por PC**:
 
@@ -69,7 +49,7 @@ netsh advfirewall firewall add rule name="NodeMesh" dir=in action=allow protocol
 
 (ejecutar CMD/PowerShell **como administrador**)
 
-## Paso 4 — Verificación
+## Verificación
 
 **1. Estado de tu nodo** (desde cualquier PC):
 

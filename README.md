@@ -138,15 +138,13 @@ docker stop nodemesh-nodo-c-1
 
 ### Opción 2: Sin Docker — una PC por nodo (red local)
 
-Requisito: Node.js 18 o superior en cada PC. Cada PC corre **un solo nodo** y los nodos **se descubren entre sí automáticamente** en la misma red local (`PEERS=auto`): no hace falta configurar IPs.
+Requisito: Node.js 18 o superior en cada PC. Cada PC corre **un solo nodo** y los nodos **se descubren entre sí automáticamente** (`PEERS=auto`): no hay que configurar IPs. En cada PC basta **una sola línea** (cada una cambia la letra de su nodo: a, b o c):
 
 ```bash
-npm install
-npm run setup   # pregunta a/b/c y crea el .env automáticamente
-npm start
+git clone https://github.com/Abb-968/NodeMesh.git && cd NodeMesh && npm install && npm run setup b && npm start
 ```
 
-Repite en cada PC (cada una responde distinto en `npm run setup`). Al arrancar, cada nodo busca a los demás en su subred cada pocos segundos y la malla se arma sola — agregar un nodo D después es solo encender otra PC con el mismo procedimiento. Los nodos quedan disponibles en `http://IP_DE_CADA_PC:3001`. Detalles y solución de problemas en [docs/conectar-nodos-red-local.md](docs/conectar-nodos-red-local.md).
+La línea hace todo: clona, instala, crea el `.env` (nodo-b, puerto 3001, descubrimiento automático) y arranca el nodo con su interfaz web. Funciona igual en Linux, macOS y Windows (CMD/PowerShell). Al arrancar, cada nodo encuentra a los demás en la red en pocos segundos y la malla se arma sola — agregar un nodo D después es correr la misma línea con otra letra en otra PC. Detalles y solución de problemas en [docs/conectar-nodos-red-local.md](docs/conectar-nodos-red-local.md).
 
 > Para ensayar sin compañeros, se pueden simular los 3 nodos en una sola PC con 3 terminales y puertos distintos: `NODE_ID=nodo-a PORT=3001 PEERS=http://localhost:3002,http://localhost:3003 npm start` (y el equivalente para B y C).
 
